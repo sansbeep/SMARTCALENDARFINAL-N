@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Glass Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .fc {
+            --fc-border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .fc .fc-toolbar-title {
+            color: #a5b4fc;
+            font-weight: 800;
+        }
+
+        .swal2-popup {
+            background: #1e293b !important;
+            color: white !important;
+        }
+    </style>
+</head>
+
+<body class="p-6">
+    <div class="glass-card max-w-5xl mx-auto p-8">
+        <h1 class="text-3xl font-bold mb-6">📅 Smart Planner</h1>
+        <div id="calendar"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+                initialView: 'dayGridMonth',
+                editable: true,
+                selectable: true,
+                events: '/events',
+                select: async (info) => {
+                    const { value: formValues } = await Swal.fire({
+                        title: 'New Event',
+                        html: '<input id="t" class="swal2-input" placeholder="Title"><textarea id="d" class="swal2-textarea" placeholder="Description"></textarea>',
+                        preConfirm: () => [document.getElementById('t').value, document.getElementById('d').value]
+                    });
+                    if (formValues && formValues[0]) {
+                        const res = await fetch('/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: formValues[0], description: formValues[1], start: info.startStr }) });
+                        const data = await res.json();
+                        calendar.addEvent({ id: data.id, title: formValues[0], description: formValues[1], start: info.startStr, backgroundColor: '#6366f1' });
+                    }
+                },
+                eventClick: (info) => {
+                    Swal.fire({
+                        title: info.event.title,
+                        text: info.event.extendedProps.description || "No description.",
+                        showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Delete'
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            await fetch(`/events/${info.event.id}`, { method: 'DELETE' });
+                            info.event.remove();
+                        }
+                    });
+                }
+            });
+            calendar.render();
+        });
+    </script>
+</body>
+
+</html>
